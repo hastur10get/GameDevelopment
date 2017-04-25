@@ -6,6 +6,9 @@
 #include "Game.h"
 #include <sstream>
 
+#include <WICTextureLoader.h>
+#include <DDSTextureLoader.h>
+#include <CommonStates.h>
 extern void ExitGame();
 
 using namespace DirectX;
@@ -41,6 +44,29 @@ void Game::Initialize(HWND window, int width, int height)
 	//スプライトフォントの描画
 	m_spriteFont = std::make_unique<SpriteFont>(m_d3dDevice.Get(), L"Resources/myfile.spritefont");
 	m_count = 0;
+	//リソース情報をしまう
+	ComPtr<ID3D11Resource> resource;
+	DX::ThrowIfFailed(
+		CreateWICTextureFromFile(m_d3dDevice.Get(), L"Resources/cat.png",
+			resource.GetAddressOf(),
+			m_texture.ReleaseAndGetAddressOf()));
+	
+	/*DX::ThrowIfFailed(
+		CreateDDSTextureFromFile(m_d3dDevice.Get(), L"Resources/cat.dds",
+			resource.GetAddressOf(),
+			m_texture.ReleaseAndGetAddressOf()));*/
+	//　猫のテクスチャ
+	ComPtr<ID3D11Texture2D> cat;
+	DX::ThrowIfFailed(resource.As(&cat));
+	// テクスチャの立幅横幅の情報
+	CD3D11_TEXTURE2D_DESC catDesc;
+	cat->GetDesc(&catDesc);
+	// テクスチャの原点を画像の中心にする
+	m_origin.x = float(catDesc.Width / 2);
+	m_origin.y = float(catDesc.Height / 2);
+	// 表示画像を画面の中心に設定
+	m_screenPos.x = m_outputWidth / 2.f;
+	m_screenPos.y = m_outputHeight / 2.f;
 }
 
 
@@ -67,7 +93,7 @@ void Game::Update(DX::StepTimer const& timer)
 	//文字列を代入
 	//m_str = L"aiueo";
 	std::wstringstream ss;
-	//素とリンgストリームに出力
+	//ストリングストリームに出力
 	ss << L"aiueo"<<m_count<<L"kakiku";
 	//ストリングストリームから文字列を取得
 	m_str = ss.str();
@@ -86,10 +112,25 @@ void Game::Render()
     Clear();
 
     // TODO: Add your rendering code here.
-	m_spriteBatch->Begin();
+	// 描画開始
+	// 生ポインタ
+	CommonStates states(m_d3dDevice.Get());
+	// デフォルトの設定
+	m_spriteBatch->Begin(SpriteSortMode_Deferred, states.NonPremultiplied());
+	// テクスチャの切り取り短形
+	RECT rect;
+	rect.left = 30;
+	rect.right = 70;
+	rect.top=30;
+	rect.bottom = 70;
+	// nullptrを &rectで指定
+	// XMConvertToRadians(90.0)でラジアン指定
+	// スプライトの描画　テクスチャの取得　ポジション　　　　　色指定　　　　角度
+	m_spriteBatch->Draw(m_texture.Get(), m_screenPos,nullptr, Colors::White, 0.0f, m_origin);
+	// スプライトフォントの描画
 	m_spriteFont->DrawString(m_spriteBatch.get(),m_str.c_str(), XMFLOAT2(100, 100));
 	m_spriteBatch->End();
-
+	
     Present();
 }
 
